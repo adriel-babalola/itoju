@@ -1,0 +1,1197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Itoju - Command & Control Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --bg-primary: #0A1A0F;
+            --accent-green: #2ECC71;
+            --warning-amber: #F39C12;
+            --alert-red: #E74C3C;
+            --surface: #112216;
+            --surface-hover: #172E1E;
+            --border-primary: #1B3624;
+            --text-primary: #E8F5E9;
+            --text-secondary: #81C784;
+            --font-ui: 'Inter', sans-serif;
+            --font-sensor: 'JetBrains Mono', monospace;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            font-family: var(--font-ui);
+            display: grid;
+            grid-template-columns: 260px 1fr;
+            grid-template-rows: 72px 1fr;
+            height: 100vh;
+            overflow: hidden;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* Top Navigation */
+        .top-nav {
+            grid-column: 1 / -1;
+            background-color: var(--surface);
+            border-bottom: 1px solid var(--border-primary);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 32px;
+            z-index: 10;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 24px;
+            font-weight: 700;
+            letter-spacing: 1px;
+            color: var(--text-primary);
+            width: 260px;
+        }
+
+        .brand i {
+            color: var(--accent-green);
+            font-size: 32px;
+        }
+
+        .hub-status {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-weight: 500;
+            color: var(--text-secondary);
+        }
+
+        .pulse-dot {
+            width: 10px;
+            height: 10px;
+            background-color: var(--accent-green);
+            border-radius: 50%;
+            box-shadow: 0 0 10px var(--accent-green);
+            animation: pulse-green 1.5s infinite;
+        }
+
+        .sync-time {
+            font-family: var(--font-sensor);
+            font-size: 13px;
+            color: var(--text-secondary);
+            margin-right: auto;
+            margin-left: 32px;
+        }
+
+        .nav-right {
+            display: flex;
+            align-items: center;
+            gap: 24px;
+        }
+
+        .notification {
+            position: relative;
+            cursor: pointer;
+        }
+
+        .notification i {
+            font-size: 24px;
+            color: var(--text-secondary);
+            transition: color 0.2s;
+        }
+
+        .notification:hover i {
+            color: var(--text-primary);
+        }
+
+        .badge {
+            position: absolute;
+            top: -4px;
+            right: -4px;
+            background-color: var(--alert-red);
+            color: white;
+            font-size: 10px;
+            font-weight: bold;
+            padding: 2px 6px;
+            border-radius: 10px;
+        }
+
+        .operator {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .operator-avatar {
+            width: 36px;
+            height: 36px;
+            background-color: var(--border-primary);
+            background-image: url('images/portrait-countryside-worker-posing.jpg');
+            background-size: cover;
+            background-position: top center;
+            border: 1px solid var(--accent-green);
+        }
+
+        /* Sidebar */
+        .sidebar {
+            background-color: var(--bg-primary);
+            border-right: 1px solid var(--border-primary);
+            padding: 32px 0;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 14px 32px;
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-weight: 500;
+            transition: all 0.2s;
+            border-left: 3px solid transparent;
+        }
+
+        .nav-item:hover {
+            color: var(--text-primary);
+            background-color: rgba(46, 204, 113, 0.05);
+            border-left-color: rgba(46, 204, 113, 0.3);
+        }
+
+        .nav-item.active {
+            color: var(--accent-green);
+            background-color: rgba(46, 204, 113, 0.1);
+            border-left-color: var(--accent-green);
+        }
+
+        .nav-item i {
+            font-size: 20px;
+        }
+
+        /* Main Content Grid */
+        .main-container {
+            padding: 32px;
+            overflow-y: auto;
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) 350px;
+            gap: 32px;
+            padding-bottom: 64px;
+        }
+
+        .left-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 32px;
+        }
+
+        .right-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 32px;
+        }
+
+        .card {
+            background-color: var(--surface);
+            border: 1px solid var(--border-primary);
+            border-radius: 0;
+            padding: 24px;
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .card-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* Chamber Cards */
+        .chambers-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 24px;
+        }
+
+        .chamber-card {
+            background-color: var(--surface);
+            border: 1px solid rgba(46, 204, 113, 0.2);
+            box-shadow: 0 0 15px rgba(46, 204, 113, 0.05);
+            position: relative;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .chamber-hero {
+            height: 120px;
+            background-color: var(--border-primary);
+            background-size: cover;
+            background-position: center;
+            position: relative;
+            border-bottom: 1px solid var(--border-primary);
+        }
+
+        .chamber-hero::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(to bottom, transparent, var(--surface));
+        }
+
+        .chamber-title {
+            position: absolute;
+            bottom: 10px;
+            left: 20px;
+            z-index: 2;
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .chamber-content {
+            padding: 20px;
+        }
+
+        .sensor-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .sensor-label {
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        .sensor-reading {
+            font-family: var(--font-sensor);
+            font-size: 24px;
+            font-weight: 700;
+            display: flex;
+            align-items:baseline;
+            gap: 4px;
+        }
+        
+        .sensor-reading.red { color: var(--alert-red); }
+        .sensor-reading.amber { color: var(--warning-amber); }
+
+        .sensor-unit {
+            font-size: 14px;
+            font-weight: 400;
+            color: var(--text-secondary);
+        }
+
+        .sensor-target {
+            font-family: var(--font-sensor);
+            font-size: 11px;
+            color: var(--text-secondary);
+            text-align: right;
+        }
+
+        .status-badge {
+            font-size: 11px;
+            font-weight: 600;
+            padding: 4px 8px;
+            background-color: rgba(46, 204, 113, 0.1);
+            color: var(--accent-green);
+            border: 1px solid var(--accent-green);
+        }
+        
+        .status-badge.alert {
+            background-color: rgba(231, 76, 60, 0.1);
+            color: var(--alert-red);
+            border-color: var(--alert-red);
+        }
+
+        .status-badge.monitor {
+            background-color: rgba(243, 156, 18, 0.1);
+            color: var(--warning-amber);
+            border-color: var(--warning-amber);
+        }
+
+        .progress-group {
+            margin-top: 16px;
+            margin-bottom: 16px;
+        }
+
+        .progress-bar {
+            height: 6px;
+            background-color: var(--border-primary);
+            margin-top: 6px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background-color: var(--accent-green);
+            transition: width 1s ease-out;
+        }
+
+        .progress-fill.amber { background-color: var(--warning-amber); }
+        .progress-fill.red { background-color: var(--alert-red); }
+
+        .hardware-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            border-top: 1px solid var(--border-primary);
+            padding-top: 16px;
+            margin-top: 8px;
+        }
+
+        .hw-read {
+            font-family: var(--font-sensor);
+            font-size: 13px;
+            color: var(--text-primary);
+        }
+
+        /* Metrics Row */
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 24px;
+        }
+
+        .metric-card {
+            background-color: var(--surface);
+            border: 1px solid var(--border-primary);
+            padding: 24px;
+            border-left: 2px solid var(--accent-green);
+        }
+
+        .metric-value {
+            font-size: 32px;
+            font-weight: 700;
+            margin: 12px 0 4px 0;
+            font-family: var(--font-sensor);
+        }
+        
+        .metric-trend {
+            font-size: 13px;
+            color: var(--accent-green);
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        /* Spoilage Table */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+        }
+
+        th {
+            font-size: 12px;
+            text-transform: uppercase;
+            color: var(--text-secondary);
+            padding-bottom: 16px;
+            border-bottom: 1px solid var(--border-primary);
+            font-weight: 600;
+        }
+
+        td {
+            padding: 16px 0;
+            border-bottom: 1px solid var(--border-primary);
+            font-size: 14px;
+            vertical-align: middle;
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        .row-alert {
+            background-color: rgba(231, 76, 60, 0.05);
+            animation: pulse-red-row 2s infinite;
+        }
+        
+        .row-monitor {
+            background-color: rgba(243, 156, 18, 0.05);
+        }
+
+        .btn {
+            background: transparent;
+            color: var(--text-primary);
+            border: 1px solid var(--border-primary);
+            padding: 8px 16px;
+            font-size: 12px;
+            font-family: var(--font-sensor);
+            cursor: pointer;
+            transition: all 0.2s;
+            font-weight: 600;
+        }
+
+        .btn:hover {
+            border-color: var(--accent-green);
+            color: var(--accent-green);
+            background-color: rgba(46, 204, 113, 0.1);
+        }
+
+        .btn-dispatch {
+            border-color: var(--warning-amber);
+            color: var(--warning-amber);
+        }
+        .btn-dispatch:hover {
+            background-color: var(--warning-amber);
+            color: var(--bg-primary);
+        }
+
+        .btn-dispatch.critical {
+            border-color: var(--alert-red);
+            color: var(--alert-red);
+        }
+        .btn-dispatch.critical:hover {
+            background-color: var(--alert-red);
+            color: var(--bg-primary);
+        }
+
+        /* Drone Fleet */
+        .drone-fleet {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+        }
+
+        .drone-card {
+            background-color: var(--bg-primary);
+            border: 1px solid var(--border-primary);
+            padding: 16px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .drone-icon {
+            font-size: 32px;
+            color: var(--text-secondary);
+        }
+
+        .drone-info h4 {
+            font-family: var(--font-sensor);
+            font-size: 14px;
+            margin-bottom: 4px;
+        }
+
+        .drone-info p {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .live-dot {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            background-color: var(--accent-green);
+            border-radius: 50%;
+            margin-right: 6px;
+            animation: pulse-green 1.5s infinite;
+        }
+
+        /* Right Panel Cards */
+        .weather-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-top: 16px;
+        }
+
+        .weather-panel {
+            background-color: var(--bg-primary);
+            padding: 16px;
+            border: 1px solid var(--border-primary);
+            text-align: center;
+        }
+
+        .weather-panel i {
+            font-size: 28px;
+            color: var(--accent-green);
+            margin-bottom: 8px;
+        }
+
+        .weather-val {
+            font-family: var(--font-sensor);
+            font-size: 20px;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+
+        /* Farmer List */
+        .farmer-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 0;
+            border-bottom: 1px solid var(--border-primary);
+        }
+
+        .farmer-profile {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .farmer-avatar {
+            width: 40px;
+            height: 40px;
+            background-color: var(--border-primary);
+            border-radius: 50%;
+            background-size: cover;
+            background-position: center;
+        }
+
+        .farmer-name {
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .farmer-crop {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-top: 2px;
+        }
+
+        .farmer-stats {
+            text-align: right;
+            font-family: var(--font-sensor);
+            font-size: 13px;
+        }
+
+        .farmer-rev {
+            color: var(--accent-green);
+            font-size: 12px;
+            margin-top: 2px;
+        }
+
+        /* Animations */
+        @keyframes pulse-green {
+            0% { box-shadow: 0 0 0 0 rgba(46, 204, 113, 0.4); }
+            70% { box-shadow: 0 0 0 6px rgba(46, 204, 113, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(46, 204, 113, 0); }
+        }
+
+        @keyframes pulse-red-row {
+            0% { background-color: rgba(231, 76, 60, 0.02); }
+            50% { background-color: rgba(231, 76, 60, 0.08); }
+            100% { background-color: rgba(231, 76, 60, 0.02); }
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: var(--bg-primary);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: var(--surface-hover);
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--text-secondary);
+        }
+        
+        .chart-container {
+            height: 300px;
+            width: 100%;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Top Navigation -->
+    <header class="top-nav">
+        <div class="brand">
+            <i class="ph-fill ph-leaf"></i>
+            ITOJU
+        </div>
+        
+        <div class="hub-status">
+            <div class="pulse-dot"></div>
+            Kaduna Hub 01 — ACTIVE
+        </div>
+
+        <div class="sync-time">
+            LAST SYNC: <span id="sync-clock">--:--:--</span>
+        </div>
+
+        <div class="nav-right">
+            <div class="notification">
+                <i class="ph ph-bell"></i>
+                <span class="badge">3</span>
+            </div>
+            <div class="operator">
+                <div>
+                    <div style="font-size: 14px; font-weight: 600;">Farouk Abubakar</div>
+                    <div style="font-size: 12px; color: var(--text-secondary); text-align: right;">Hub Manager</div>
+                </div>
+                <div class="operator-avatar"></div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Sidebar -->
+    <aside class="sidebar">
+        <a href="#" class="nav-item active"><i class="ph ph-squares-four"></i> Overview</a>
+        <a href="#" class="nav-item"><i class="ph ph-thermometer-cold"></i> Chambers</a>
+        <a href="#" class="nav-item"><i class="ph ph-package"></i> Inventory</a>
+        <a href="#" class="nav-item"><i class="ph ph-truck"></i> Dispatch</a>
+        <a href="#" class="nav-item"><i class="ph ph-airplane-tilt"></i> Drone Fleet</a>
+        <a href="#" class="nav-item"><i class="ph ph-users"></i> Farmers</a>
+        <a href="#" class="nav-item"><i class="ph ph-chart-line-up"></i> Analytics</a>
+        <a href="#" class="nav-item"><i class="ph ph-shield-check"></i> Policy Reports</a>
+        <div style="flex-grow: 1;"></div>
+        <a href="#" class="nav-item"><i class="ph ph-gear"></i> Settings</a>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-container">
+        <!-- Left Column -->
+        <div class="left-panel">
+            
+            <!-- Chamber Status Cards -->
+            <section class="chambers-grid">
+                <!-- Tomato Chamber -->
+                <div class="chamber-card">
+                    <div class="chamber-hero" style="background-image: url('images/vegitables.jpg');">
+                        <h3 class="chamber-title">TOMATO — CH 01</h3>
+                    </div>
+                    <div class="chamber-content">
+                        <div class="sensor-row">
+                            <div class="sensor-label">TEMPERATURE</div>
+                            <div style="text-align: right;">
+                                <div class="sensor-reading"><span class="animate-num" data-val="12.4" data-decimals="1">0.0</span><span class="sensor-unit">°C</span></div>
+                                <div class="sensor-target">Target: 12.0°C</div>
+                            </div>
+                        </div>
+                        <div class="sensor-row">
+                            <div class="sensor-label">HUMIDITY</div>
+                            <div style="text-align: right;">
+                                <div class="sensor-reading"><span class="animate-num" data-val="88" data-decimals="0">0</span><span class="sensor-unit">%</span></div>
+                                <div class="sensor-target">Target: 85-90%</div>
+                            </div>
+                        </div>
+                        <div class="sensor-row">
+                            <div class="sensor-label">ETHYLENE</div>
+                            <div class="status-badge alert">ALERT: 14.2 ppm</div>
+                        </div>
+                        
+                        <div class="progress-group">
+                            <div class="sensor-label" style="display: flex; justify-content: space-between;">
+                                <span>Shelf Life: Batch T-402</span>
+                                <span style="color: var(--alert-red); font-family: var(--font-sensor);">2 Days Left</span>
+                            </div>
+                            <div class="progress-bar">
+                                <div class="progress-fill red" style="width: 15%;"></div>
+                            </div>
+                        </div>
+
+                        <div class="hardware-grid">
+                            <div>
+                                <div class="sensor-label">SOLENOID VALVE</div>
+                                <div class="hw-read" style="color: var(--accent-green);">OPEN</div>
+                            </div>
+                            <div>
+                                <div class="sensor-label">EVAP FAN</div>
+                                <div class="hw-read"><span class="animate-num" data-val="1450" data-decimals="0">0</span> RPM</div>
+                            </div>
+                            <div style="grid-column: span 2; margin-top: 8px;">
+                                <div class="sensor-label">CHAMBER LOAD</div>
+                                <div class="hw-read"><span class="animate-num" data-val="2450" data-decimals="0">0</span> / 5000 kg</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Onion Chamber -->
+                <div class="chamber-card">
+                    <div class="chamber-hero" style="background-image: url('images/photorealistic-view-african-people-harvesting-vegetables-grains.jpg');">
+                        <h3 class="chamber-title">ONION — CH 02</h3>
+                    </div>
+                    <div class="chamber-content">
+                        <div class="sensor-row">
+                            <div class="sensor-label">TEMPERATURE</div>
+                            <div style="text-align: right;">
+                                <div class="sensor-reading"><span class="animate-num" data-val="2.5" data-decimals="1">0.0</span><span class="sensor-unit">°C</span></div>
+                                <div class="sensor-target">Target: 2.0°C</div>
+                            </div>
+                        </div>
+                        <div class="sensor-row">
+                            <div class="sensor-label">HUMIDITY</div>
+                            <div style="text-align: right;">
+                                <div class="sensor-reading"><span class="animate-num" data-val="65" data-decimals="0">0</span><span class="sensor-unit">%</span></div>
+                                <div class="sensor-target">Target: 65-70%</div>
+                            </div>
+                        </div>
+                        <div class="sensor-row">
+                            <div class="sensor-label">ETHYLENE</div>
+                            <div class="status-badge">OPTIMAL: 0.1 ppm</div>
+                        </div>
+                        
+                        <div class="progress-group">
+                            <div class="sensor-label" style="display: flex; justify-content: space-between;">
+                                <span>Shelf Life: Batch O-118</span>
+                                <span style="color: var(--accent-green); font-family: var(--font-sensor);">45 Days Left</span>
+                            </div>
+                            <div class="progress-bar">
+                                <div class="progress-fill" style="width: 80%;"></div>
+                            </div>
+                        </div>
+
+                        <div class="hardware-grid">
+                            <div>
+                                <div class="sensor-label">SOLENOID VALVE</div>
+                                <div class="hw-read" style="color: var(--text-secondary);">CLOSED</div>
+                            </div>
+                            <div>
+                                <div class="sensor-label">EVAP FAN</div>
+                                <div class="hw-read">OFF</div>
+                            </div>
+                            <div style="grid-column: span 2; margin-top: 8px;">
+                                <div class="sensor-label">CHAMBER LOAD</div>
+                                <div class="hw-read"><span class="animate-num" data-val="4100" data-decimals="0">0</span> / 5000 kg</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Leafy Veg Chamber -->
+                <div class="chamber-card">
+                    <div class="chamber-hero" style="background-image: url('images/walk-through-farm.jpg'); background-position: top;">
+                        <h3 class="chamber-title">LEAFY VEG — CH 03</h3>
+                    </div>
+                    <div class="chamber-content">
+                        <div class="sensor-row">
+                            <div class="sensor-label">TEMPERATURE</div>
+                            <div style="text-align: right;">
+                                <div class="sensor-reading amber"><span class="animate-num" data-val="4.8" data-decimals="1">0.0</span><span class="sensor-unit">°C</span></div>
+                                <div class="sensor-target">Target: 2.0°C</div>
+                            </div>
+                        </div>
+                        <div class="sensor-row">
+                            <div class="sensor-label">HUMIDITY</div>
+                            <div style="text-align: right;">
+                                <div class="sensor-reading"><span class="animate-num" data-val="95" data-decimals="0">0</span><span class="sensor-unit">%</span></div>
+                                <div class="sensor-target">Target: 95-98%</div>
+                            </div>
+                        </div>
+                        <div class="sensor-row">
+                            <div class="sensor-label">ETHYLENE</div>
+                            <div class="status-badge monitor">MONITOR: 3.5 ppm</div>
+                        </div>
+                        
+                        <div class="progress-group">
+                            <div class="sensor-label" style="display: flex; justify-content: space-between;">
+                                <span>Shelf Life: Batch L-882</span>
+                                <span style="color: var(--warning-amber); font-family: var(--font-sensor);">5 Days Left</span>
+                            </div>
+                            <div class="progress-bar">
+                                <div class="progress-fill amber" style="width: 35%;"></div>
+                            </div>
+                        </div>
+
+                        <div class="hardware-grid">
+                            <div>
+                                <div class="sensor-label">SOLENOID VALVE</div>
+                                <div class="hw-read" style="color: var(--accent-green);">OPEN</div>
+                            </div>
+                            <div>
+                                <div class="sensor-label">EVAP FAN</div>
+                                <div class="hw-read"><span class="animate-num" data-val="1800" data-decimals="0">0</span> RPM</div>
+                            </div>
+                            <div style="grid-column: span 2; margin-top: 8px;">
+                                <div class="sensor-label">CHAMBER LOAD</div>
+                                <div class="hw-read"><span class="animate-num" data-val="840" data-decimals="0">0</span> / 2000 kg</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Summary Metrics -->
+            <section class="metrics-grid">
+                <div class="metric-card">
+                    <div class="card-title">TOTAL INVENTORY</div>
+                    <div class="metric-value"><span class="animate-num" data-val="7390" data-decimals="0">0</span> <span style="font-size: 16px; color: var(--text-secondary);">kg</span></div>
+                    <div class="metric-trend"><i class="ph-bold ph-trend-up"></i> +450kg today</div>
+                </div>
+                <div class="metric-card" style="border-left-color: var(--alert-red);">
+                    <div class="card-title">SPOILAGE RISK BATCHES</div>
+                    <div class="metric-value" style="color: var(--alert-red);"><span class="animate-num" data-val="3" data-decimals="0">0</span></div>
+                    <div class="metric-trend" style="color: var(--alert-red);"><i class="ph-bold ph-warning"></i> Action required</div>
+                </div>
+                <div class="metric-card">
+                    <div class="card-title">DISPATCHES (THIS WEEK)</div>
+                    <div class="metric-value"><span class="animate-num" data-val="24" data-decimals="0">0</span></div>
+                    <div class="metric-trend"><i class="ph-bold ph-check-circle"></i> 100% Fulfillment</div>
+                </div>
+                <div class="metric-card" style="border-left-color: var(--accent-green);">
+                    <div class="card-title">REVENUE RECOVERED</div>
+                    <div class="metric-value">₦<span class="animate-num" data-val="4.2" data-decimals="1">0</span>M</div>
+                    <div class="metric-trend"><i class="ph-bold ph-trend-up"></i> YTD Estimate</div>
+                </div>
+            </section>
+
+            <!-- Spoilage Prediction & Charts -->
+            <div style="display: grid; grid-template-columns: 1.2fr 1fr; gap: 32px;">
+                
+                <!-- Spoilage Table -->
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">ACTIVE RUNWAY & DISPATCH ALERTS</div>
+                        <button class="btn"><i class="ph ph-export"></i> EXPORT</button>
+                    </div>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Farmer</th>
+                                <th>Batch / Crop</th>
+                                <th>Shelflife</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr class="row-alert">
+                                <td>Amina Bello</td>
+                                <td><strong>450kg</strong> Tomato <br><span style="color: var(--text-secondary); font-size: 11px;">18 days stored</span></td>
+                                <td><span style="color: var(--alert-red); font-family: var(--font-sensor); font-weight: 700;">2 DAYS</span></td>
+                                <td><button class="btn btn-dispatch critical">TRIGGER DISPATCH</button></td>
+                            </tr>
+                            <tr class="row-monitor">
+                                <td>Chukwu Okafor</td>
+                                <td><strong>120kg</strong> Leafy Veg <br><span style="color: var(--text-secondary); font-size: 11px;">4 days stored</span></td>
+                                <td><span style="color: var(--warning-amber); font-family: var(--font-sensor); font-weight: 700;">5 DAYS</span></td>
+                                <td><button class="btn btn-dispatch">SCHEDULE</button></td>
+                            </tr>
+                            <tr>
+                                <td>Fatima Usman</td>
+                                <td><strong>2100kg</strong> Onion <br><span style="color: var(--text-secondary); font-size: 11px;">10 days stored</span></td>
+                                <td><span style="color: var(--accent-green); font-family: var(--font-sensor); font-weight: 700;">45 DAYS</span></td>
+                                <td><span style="color: var(--text-secondary); font-size: 12px;">OPTIMAL</span></td>
+                            </tr>
+                            <tr>
+                                <td>Ibrahim Musa</td>
+                                <td><strong>320kg</strong> Tomato <br><span style="color: var(--text-secondary); font-size: 11px;">2 days stored</span></td>
+                                <td><span style="color: var(--accent-green); font-family: var(--font-sensor); font-weight: 700;">24 DAYS</span></td>
+                                <td><span style="color: var(--text-secondary); font-size: 12px;">OPTIMAL</span></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Production Summary Chart -->
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">PRODUCTION CONSERVATION SUMMARY</div>
+                        <button class="btn" style="border: none;"><i class="ph ph-dots-three-outline"></i></button>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="productionChart"></canvas>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Drone Fleet -->
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">DRONE LOGISTICS FLEET</div>
+                    <div style="font-size: 12px; color: var(--accent-green);"><span class="live-dot"></span> 1 FLEET ACTIVE</div>
+                </div>
+                <div class="drone-fleet">
+                    <div class="drone-card" style="border-color: var(--accent-green);">
+                        <i class="ph-fill ph-airplane-tilt drone-icon" style="color: var(--accent-green);"></i>
+                        <div class="drone-info">
+                            <h4>ITJ-DRN-01 (IN FLIGHT)</h4>
+                            <p>Delivery: Zaria Market (Est. 14 mins)</p>
+                            <div class="progress-bar" style="margin-top: 8px;"><div class="progress-fill" style="width: 78%;"></div></div>
+                        </div>
+                        <div style="margin-left: auto; text-align: right;">
+                            <div style="font-family: var(--font-sensor); font-weight: 700;">78%</div>
+                            <div style="font-size: 10px; color: var(--text-secondary);">BATT</div>
+                        </div>
+                    </div>
+                    
+                    <div class="drone-card">
+                        <i class="ph-fill ph-airplane-tilt drone-icon"></i>
+                        <div class="drone-info">
+                            <h4 style="color: var(--text-secondary);">ITJ-DRN-02 (CHARGING)</h4>
+                            <p>Next: 14:00 (Amina Bello dispatch)</p>
+                            <div class="progress-bar" style="margin-top: 8px;"><div class="progress-fill amber" style="width: 42%;"></div></div>
+                        </div>
+                        <div style="margin-left: auto; text-align: right;">
+                            <div style="font-family: var(--font-sensor); color: var(--warning-amber); font-weight: 700;">42%</div>
+                            <div style="font-size: 10px; color: var(--text-secondary);">BATT</div>
+                        </div>
+                    </div>
+
+                    <div class="drone-card">
+                        <i class="ph-fill ph-airplane-tilt drone-icon"></i>
+                        <div class="drone-info">
+                            <h4 style="color: var(--text-secondary);">ITJ-DRN-03 (IDLE)</h4>
+                            <p>Ready for deployment</p>
+                            <div class="progress-bar" style="margin-top: 8px;"><div class="progress-fill" style="width: 100%;"></div></div>
+                        </div>
+                        <div style="margin-left: auto; text-align: right;">
+                            <div style="font-family: var(--font-sensor); color: var(--accent-green); font-weight: 700;">100%</div>
+                            <div style="font-size: 10px; color: var(--text-secondary);">BATT</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Right Column -->
+        <div class="right-panel">
+            
+            <!-- Weather & Energy -->
+            <div class="card">
+                <div class="card-header" style="margin-bottom: 0;">
+                    <div class="card-title">KADUNA MICROCLIMATE & ENERGY</div>
+                </div>
+                <div class="weather-grid">
+                    <div class="weather-panel">
+                        <i class="ph-fill ph-sun"></i>
+                        <div class="weather-val"><span class="animate-num" data-val="34" data-decimals="0">0</span>°C</div>
+                        <div style="font-size: 12px; color: var(--text-secondary);">Ambient Temp</div>
+                    </div>
+                    <div class="weather-panel">
+                        <i class="ph-fill ph-drop"></i>
+                        <div class="weather-val"><span class="animate-num" data-val="42" data-decimals="0">0</span>%</div>
+                        <div style="font-size: 12px; color: var(--text-secondary);">Humidity Outside</div>
+                    </div>
+                    <div class="weather-panel">
+                        <i class="ph-fill ph-solar-panel"></i>
+                        <div class="weather-val"><span class="animate-num" data-val="12.4" data-decimals="1">0</span>kW</div>
+                        <div style="font-size: 12px; color: var(--text-secondary);">Solar Gen (Now)</div>
+                    </div>
+                    <div class="weather-panel">
+                        <i class="ph-fill ph-battery-charging"></i>
+                        <div class="weather-val"><span class="animate-num" data-val="88" data-decimals="0">0</span>%</div>
+                        <div style="font-size: 12px; color: var(--text-secondary);">~14h Autonomy</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Farmer Network -->
+            <div class="card" style="flex-grow: 1;">
+                <div class="card-header">
+                    <div class="card-title">FARMER NETWORK</div>
+                    <div class="badge" style="position: static; font-size: 12px; padding: 4px 8px;">24 ACTIVE</div>
+                </div>
+                
+                <div class="farmer-list">
+                    <div class="farmer-item">
+                        <div class="farmer-profile">
+                            <div class="farmer-avatar" style="background-image: url('images/countryside-women-out-field-posing.jpg');"></div>
+                            <div>
+                                <div class="farmer-name">Amina Bello</div>
+                                <div class="farmer-crop">Tomato Farm (Zaria)</div>
+                            </div>
+                        </div>
+                        <div class="farmer-stats">
+                            <div>450 kg active</div>
+                            <div class="farmer-rev">Est. ₦240k</div>
+                        </div>
+                        <button class="btn" style="padding: 6px 10px;"><i class="ph ph-device-mobile"></i> USSD</button>
+                    </div>
+
+                    <div class="farmer-item">
+                        <div class="farmer-profile">
+                            <div class="farmer-avatar" style="background-image: url('images/portrait-countryside-worker-posing.jpg'); background-position: top center;"></div>
+                            <div>
+                                <div class="farmer-name">Chukwu Okafor</div>
+                                <div class="farmer-crop">Leafy Veg (Kachia)</div>
+                            </div>
+                        </div>
+                        <div class="farmer-stats">
+                            <div>120 kg active</div>
+                            <div class="farmer-rev">Est. ₦45k</div>
+                        </div>
+                        <button class="btn" style="padding: 6px 10px;"><i class="ph ph-device-mobile"></i> USSD</button>
+                    </div>
+
+                    <div class="farmer-item">
+                        <div class="farmer-profile">
+                            <div class="farmer-avatar" style="background-color: #2c3e50; border: 1px solid var(--border-primary);"></div>
+                            <div>
+                                <div class="farmer-name">Fatima Usman</div>
+                                <div class="farmer-crop">Onion Collective</div>
+                            </div>
+                        </div>
+                        <div class="farmer-stats">
+                            <div>2,100 kg active</div>
+                            <div class="farmer-rev">Est. ₦1.2M</div>
+                        </div>
+                        <button class="btn" style="padding: 6px 10px;"><i class="ph ph-device-mobile"></i> USSD</button>
+                    </div>
+                    
+                     <div class="farmer-item">
+                        <div class="farmer-profile">
+                            <div class="farmer-avatar" style="background-color: #34495e; border: 1px solid var(--border-primary);"></div>
+                            <div>
+                                <div class="farmer-name">Ibrahim Musa</div>
+                                <div class="farmer-crop">Tomato Farm</div>
+                            </div>
+                        </div>
+                        <div class="farmer-stats">
+                            <div>320 kg active</div>
+                            <div class="farmer-rev">Est. ₦180k</div>
+                        </div>
+                        <button class="btn" style="padding: 6px 10px;"><i class="ph ph-device-mobile"></i> USSD</button>
+                    </div>
+                    
+                    <button class="btn" style="width: 100%; margin-top: 24px;">VIEW ALL 24 FARMERS</button>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <script>
+        // Start Sync Clock
+        function updateClock() {
+            const now = new Date();
+            document.getElementById('sync-clock').textContent = now.toLocaleTimeString('en-US', { hour12: false });
+        }
+        setInterval(updateClock, 1000);
+        updateClock();
+
+        // Animate Numbers
+        function animateValue(element, start, end, duration) {
+            let startTimestamp = null;
+            const step = (timestamp) => {
+                if (!startTimestamp) startTimestamp = timestamp;
+                const progress = Math.min((timestamp - startTimestamp) / duration, 1);
+                
+                // easeOutQuart
+                const easeOut = 1 - Math.pow(1 - progress, 4);
+                
+                let current = (progress * (end - start) + start);
+                
+                if (element.dataset.decimals) {
+                     element.innerHTML = current.toFixed(parseInt(element.dataset.decimals));
+                } else {
+                     element.innerHTML = Math.floor(current);
+                }
+                
+                if (progress < 1) {
+                    window.requestAnimationFrame(step);
+                }
+            };
+            window.requestAnimationFrame(step);
+        }
+
+        // Wait a small moment for initial paint before animating
+        setTimeout(() => {
+            document.querySelectorAll('.animate-num').forEach(el => {
+                const endValue = parseFloat(el.getAttribute('data-val'));
+                animateValue(el, 0, endValue, 2500);
+            });
+        }, 300);
+
+        // Chart.js Configuration
+        const ctx = document.getElementById('productionChart').getContext('2d');
+        
+        // gradient for stored
+        let gradientStored = ctx.createLinearGradient(0, 0, 0, 400);
+        gradientStored.addColorStop(0, '#2ECC71');
+        gradientStored.addColorStop(1, 'rgba(46, 204, 113, 0.2)');
+
+        // gradient for lost
+        let gradientLost = ctx.createLinearGradient(0, 0, 0, 400);
+        gradientLost.addColorStop(0, '#E74C3C');
+        gradientLost.addColorStop(1, 'rgba(231, 76, 60, 0.2)');
+
+        Chart.defaults.color = '#81C784';
+        Chart.defaults.font.family = "'Inter', sans-serif";
+
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct'],
+                datasets: [
+                    {
+                        label: 'Produce Stored (kg)',
+                        data: [1200, 1400, 2200, 1800, 3100, 2400, 1900, 2800, 2100, 2900],
+                        backgroundColor: gradientStored,
+                        borderRadius: 4,
+                        barPercentage: 0.6,
+                        categoryPercentage: 0.8
+                    },
+                    {
+                        label: 'Produce Lost (kg)',
+                        data: [200, 150, 400, 250, 300, 180, 150, 400, 150, 200],
+                        backgroundColor: gradientLost,
+                        borderRadius: 4,
+                        barPercentage: 0.6,
+                        categoryPercentage: 0.8
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: {
+                    mode: 'index',
+                    intersect: false,
+                },
+                plugins: {
+                    legend: {
+                        position: 'top',
+                        align: 'end',
+                        labels: {
+                            usePointStyle: true,
+                            boxWidth: 8,
+                            font: { size: 12 }
+                        }
+                    },
+                    tooltip: {
+                        backgroundColor: '#112216',
+                        titleColor: '#E8F5E9',
+                        bodyColor: '#E8F5E9',
+                        borderColor: '#1B3624',
+                        borderWidth: 1,
+                        padding: 12,
+                        callbacks: {
+                            title: (context) => context[0].label + ' 2026',
+                            label: (context) => ` ${context.dataset.label}: ${context.raw} kg`
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        stacked: true,
+                        grid: { display: false, drawBorder: false },
+                        ticks: { font: { size: 11 } }
+                    },
+                    y: {
+                        stacked: true,
+                        grid: { color: '#1B3624', drawBorder: false },
+                        ticks: { font: { family: "'JetBrains Mono', monospace", size: 11 } }
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+</html>
